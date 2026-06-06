@@ -8,21 +8,21 @@ USE bantaypurrpaws;
 -- 1. Extend users table for Google OAuth
 -- ──────────────────────────────────────────────────────────
 ALTER TABLE users
-    ADD COLUMN IF NOT EXISTS google_id       VARCHAR(128)  DEFAULT NULL AFTER role,
-    ADD COLUMN IF NOT EXISTS avatar_url      VARCHAR(512)  DEFAULT NULL AFTER google_id,
-    ADD COLUMN IF NOT EXISTS email_verified  TINYINT(1)    NOT NULL DEFAULT 0 AFTER avatar_url,
-    ADD COLUMN IF NOT EXISTS auth_provider   ENUM('local','google') NOT NULL DEFAULT 'local' AFTER email_verified;
+    MODIFY COLUMN google_id       VARCHAR(128)  DEFAULT NULL AFTER role,
+    MODIFY COLUMN avatar_url      VARCHAR(512)  DEFAULT NULL AFTER google_id,
+    MODIFY COLUMN email_verified  TINYINT(1)    NOT NULL DEFAULT 0 AFTER avatar_url,
+    MODIFY COLUMN auth_provider   ENUM('local','google') NOT NULL DEFAULT 'local' AFTER email_verified;
 
 -- Allow NULL password for pure-Google accounts
 ALTER TABLE users MODIFY COLUMN password VARCHAR(255) DEFAULT NULL;
 
 -- Unique index on google_id (sparse — only non-null rows)
-CREATE UNIQUE INDEX IF NOT EXISTS uk_google_id ON users (google_id);
+CREATE UNIQUE INDEX   uk_google_id ON users (google_id);
 
 -- ──────────────────────────────────────────────────────────
 -- 2. OTP tokens table
 -- ──────────────────────────────────────────────────────────
-CREATE TABLE IF NOT EXISTS otp_tokens (
+CREATE TABLE   otp_tokens (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     email       VARCHAR(150)  NOT NULL,
     otp_code    CHAR(6)       NOT NULL,

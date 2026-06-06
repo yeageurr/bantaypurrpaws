@@ -7,10 +7,10 @@
  * Setup (Google Cloud Console):
  *   1. Create an OAuth 2.0 Client ID (Web application).
  *   2. Add Authorized redirect URIs for each environment you use, e.g.:
- *        https://bantaypurrpaws.infinityfree.me/auth/google-callback.php
- *        http://localhost/bantaypurrpaws/auth/google-callback.php
+ *        https://your-production-domain.com/auth/google-callback.php
+ *        http://localhost:8000/auth/google-callback.php
  *      Visit /auth/oauth-setup.php on each host to copy the exact URI Google expects.
- *   3. Copy Client ID and Secret into your environment or config below.
+ *   3. Set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, and GOOGLE_REDIRECT_URI in .env
  */
 
 require_once __DIR__ . '/db.php';
@@ -29,8 +29,8 @@ function googleOAuthDebugErrors(): void {
 }
 
 // ── Configuration (override via env: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, GOOGLE_REDIRECT_URI)
-define('GOOGLE_CLIENT_ID',     $_ENV['GOOGLE_CLIENT_ID']     ?? getenv('GOOGLE_CLIENT_ID')     ?: '393138075821-ecekhh0kvcc84f9vl0f0oiod08t2dbmd.apps.googleusercontent.com');
-define('GOOGLE_CLIENT_SECRET', $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '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');
+define('GOOGLE_CLIENT_ID', $_ENV['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID') ?: '');
+define('GOOGLE_CLIENT_SECRET', $_ENV['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET') ?: '');
 
 /**
  * OAuth redirect URI for the current request (must match Google Cloud Console exactly).

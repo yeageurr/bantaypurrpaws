@@ -23,6 +23,10 @@ if (!$report) {
     exit;
 }
 
+// Decrypt contact number for display
+require_once __DIR__ . '/includes/sensitive-data.php';
+$report['contact_number'] = revealSubmissionPhone($report);
+
 $assignedName = null;
 if (!empty($report['assigned_to'])) {
     $assigned = db_select('users', 'id=eq.' . (int) $report['assigned_to'] . '&select=full_name&limit=1', true);
@@ -62,6 +66,11 @@ require_once __DIR__ . '/includes/header.php';
             <span class="status-dot"></span>
             <?= $status['label'] ?>
         </span>
+        <?php if ($report['status'] === 'in_progress'): ?>
+        <p style="margin:8px 0 0;font-size:.82rem;color:var(--text-secondary);font-style:italic;">
+            🚑 Rescue submitted to rescue team.
+        </p>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -124,7 +133,7 @@ require_once __DIR__ . '/includes/header.php';
     </div>
 
     <div>
-        <?php if ($canApproveReject && $report['status'] === 'pending'): ?>
+        <?php if ($canApproveReject && in_array($report['status'], ['pending','submitted'], true)): ?>
         <div class="card mb-4">
             <div class="card-header"><span class="card-title">Administrator review</span></div>
             <div class="card-body flex flex-col gap-2">
@@ -140,9 +149,9 @@ require_once __DIR__ . '/includes/header.php';
                 </form>
             </div>
         </div>
-        <?php elseif (isStaff() && $report['status'] === 'pending'): ?>
+        <?php elseif (isStaff() && in_array($report['status'], ['pending','submitted'], true)): ?>
         <div class="permission-notice mb-4">
-            This report is awaiting administrator approval. You can update status once it has been reviewed.
+            This report has been submitted and is awaiting review. Once approved, you can update its progress.
         </div>
         <?php endif; ?>
 
@@ -155,7 +164,7 @@ require_once __DIR__ . '/includes/header.php';
                     <div class="form-group">
                         <label class="form-label">New Status</label>
                         <select name="status" class="form-control">
-                            <option value="pending"     <?= $report['status'] === 'pending'     ? 'selected' : '' ?>>Pending</option>
+                            <option value="submitted"   <?= in_array($report['status'],['pending','submitted']) ? 'selected' : '' ?>>Submitted</option>
                             <option value="in_progress" <?= $report['status'] === 'in_progress' ? 'selected' : '' ?>>In Progress</option>
                             <option value="rescued"     <?= $report['status'] === 'rescued'     ? 'selected' : '' ?>>Rescued (Approved)</option>
                             <option value="failed"      <?= $report['status'] === 'failed'      ? 'selected' : '' ?>>Failed (Rejected)</option>
@@ -219,7 +228,7 @@ document.querySelectorAll('.report-action-form').forEach(function (form) {
         const action = form.querySelector('[name="action"]').value;
         const title = action === 'approve' ? 'Approve this report?' : 'Reject this report?';
         const text = action === 'approve'
-            ? 'The reporter will be notified by email that the report was approved.'
+            ? 'Status will change to "In Progress" and the reporter will be notified.'
             : 'The reporter will be notified by email that the report was rejected.';
         if (typeof Swal !== 'undefined') {
             Swal.fire({

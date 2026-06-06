@@ -63,7 +63,7 @@ require_once __DIR__ . '/includes/header.php';
                                 <?= $status['label'] ?>
                             </span>
                         </td>
-                        <td class="text-secondary text-sm"><?= timeAgo($report['updated_at']) ?></td>
+                        <td class="text-secondary text-sm"><?= $report['updated_at'] ?></td>
                         <td>
                             <a href="<?= url('view-report.php?id=' . $report['id']) ?>" class="btn btn-ghost btn-sm">View</a>
                         </td>

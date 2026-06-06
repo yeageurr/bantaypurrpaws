@@ -16,7 +16,10 @@ define('PET_ALLOWED_EXT',      ['jpg', 'jpeg', 'png', 'webp']);
 
 function ensurePetUploadDir(): void {
     if (!is_dir(PET_UPLOAD_DIR)) {
-        mkdir(PET_UPLOAD_DIR, 0755, true);
+        mkdir(PET_UPLOAD_DIR, 0775, true);
+    }
+    if (!is_writable(PET_UPLOAD_DIR)) {
+        @chmod(PET_UPLOAD_DIR, 0775);
     }
 }
 
@@ -30,8 +33,17 @@ function petImageUrl(?string $path): string {
 
 function uploadPetImage(array $file): array {
     ensurePetUploadDir();
-    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-        return ['ok' => false, 'error' => 'Image upload failed. Please try again.'];
+    $err = $file['error'] ?? UPLOAD_ERR_NO_FILE;
+    if ($err !== UPLOAD_ERR_OK) {
+        $phpErrMsg = match($err) {
+            UPLOAD_ERR_INI_SIZE, UPLOAD_ERR_FORM_SIZE => 'Image file is too large. Maximum allowed size is 5MB.',
+            UPLOAD_ERR_NO_FILE   => 'No image file was selected.',
+            UPLOAD_ERR_PARTIAL   => 'Image upload was interrupted. Please try again.',
+            UPLOAD_ERR_NO_TMP_DIR=> 'Server configuration error: missing temp directory.',
+            UPLOAD_ERR_CANT_WRITE=> 'Server error: could not write file to disk.',
+            default              => 'Image upload failed (error ' . $err . '). Please try again.',
+        };
+        return ['ok' => false, 'error' => $phpErrMsg];
     }
     $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
     if (!in_array($ext, PET_ALLOWED_EXT, true)) {
@@ -64,9 +76,10 @@ function deletePetImageFile(?string $path): void {
 
 function formatPetStatus(string $status): array {
     return match ($status) {
-        'available' => ['label' => 'Available', 'class' => 'pet-status-available'],
-        'adopted'   => ['label' => 'Adopted',   'class' => 'pet-status-adopted'],
-        default     => ['label' => ucfirst($status), 'class' => 'pet-status-available'],
+        'available'        => ['label' => 'Available',                'class' => 'pet-status-available'],
+        'pending_adoption' => ['label' => 'Pending Adoption Approval','class' => 'pet-status-pending'],
+        'adopted'          => ['label' => 'Adopted',                  'class' => 'pet-status-adopted'],
+        default            => ['label' => ucfirst($status),           'class' => 'pet-status-available'],
     };
 }
 
@@ -102,7 +115,9 @@ function getPetGallery(array $pet): array {
 
 function petCanReceiveApplications(int $petId): bool {
     $pet = getPetById($petId);
-    return $pet && $pet['status'] === 'available';
+    // Allow approval if the pet is still available OR has a pending_adoption application
+    // (status is only changed to 'adopted' when admin explicitly approves, not on submission)
+    return $pet && in_array($pet['status'], ['available', 'pending_adoption'], true);
 }
 
 function userHasPendingApplication(int $userId, int $petId): bool {

@@ -8,6 +8,7 @@ if (isAdmin()) {
     header('Location: ' . url('admin/announcements.php'));
     exit;
 }
+// Staff can view the announcements page
 
 $pageTitle = 'Announcements';
 $user      = currentUser();

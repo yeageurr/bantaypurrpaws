@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/submission-notifications.php';
-requireAdmin();
+requireCanManageReports();
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ' . url('admin/reports.php'));
@@ -14,10 +14,10 @@ $newStatus = $_POST['status'] ?? '';
 $notes     = sanitize($_POST['notes'] ?? '');
 $user      = currentUser();
 
-$validStatuses = ['pending', 'in_progress', 'rescued', 'failed'];
+$validStatuses = ['submitted', 'pending', 'in_progress', 'rescued', 'failed'];
 
 if ($action === 'approve') {
-    $newStatus = 'rescued';
+    $newStatus = 'in_progress';
 } elseif ($action === 'reject') {
     $newStatus = 'failed';
 }
@@ -70,7 +70,10 @@ db_insert('report_logs', [
 
 $emailSent = false;
 try {
-    if ($newStatus === 'rescued') {
+    if ($newStatus === 'in_progress') {
+        // Approved → in progress: notify reporter
+        $emailSent = notifyReportApproved($report);
+    } elseif ($newStatus === 'rescued') {
         $emailSent = notifyReportApproved($report);
     } elseif ($newStatus === 'failed') {
         $emailSent = notifyReportRejected($report);

@@ -1,7 +1,7 @@
 -- Pet Adoption feature tables (run after main database.sql)
 USE bantaypurrpaws;
 
-CREATE TABLE IF NOT EXISTS pets (
+CREATE TABLE   pets (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(100) NOT NULL,
     breed VARCHAR(100) NOT NULL,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS pets (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
-CREATE TABLE IF NOT EXISTS pet_images (
+CREATE TABLE   pet_images (
     id INT AUTO_INCREMENT PRIMARY KEY,
     pet_id INT NOT NULL,
     image_path VARCHAR(255) NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS pet_images (
     FOREIGN KEY (pet_id) REFERENCES pets(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS adoption_applications (
+CREATE TABLE   adoption_applications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     pet_id INT NOT NULL,
     user_id INT NOT NULL,
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS adoption_applications (
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS notifications (
+CREATE TABLE   notifications (
     id INT AUTO_INCREMENT PRIMARY KEY,
     application_id INT NOT NULL,
     message VARCHAR(255) NOT NULL,

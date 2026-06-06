@@ -1,5 +1,36 @@
 <?php
 require_once __DIR__ . '/auth.php';
+
+// ── Refresh staff permissions live from DB on each page load ─────────────────
+// When an admin changes a staff member's permissions, the session's cached
+// staff_permissions must be updated immediately — no re-login required.
+if (isLoggedIn() && ($_SESSION['role'] ?? '') === 'staff') {
+    $staffId = (int) ($_SESSION['user_id'] ?? 0);
+    if ($staffId) {
+        $staffRow = db_select('users', "id=eq.{$staffId}&select=staff_permissions,permissions_changed_at&limit=1", true);
+        $changedAt    = $staffRow['permissions_changed_at'] ?? null;
+        $sessionStart = $_SESSION['session_started_at'] ?? 0;
+        if ($changedAt && strtotime($changedAt) > $sessionStart) {
+            // Refresh permissions in the current session — no forced re-login needed
+            $raw = $staffRow['staff_permissions'] ?? null;
+            if ($raw !== null && is_string($raw)) {
+                $decoded = json_decode($raw, true);
+                $_SESSION['staff_permissions'] = is_array($decoded) ? $decoded : null;
+            } else {
+                $_SESSION['staff_permissions'] = is_array($raw) ? $raw : null;
+            }
+            // Update session start so we don't re-check on every single request
+            $_SESSION['session_started_at'] = time();
+            // Notify the staff member once that their permissions were updated
+            if (empty($_SESSION['perms_refresh_notified_at']) ||
+                $_SESSION['perms_refresh_notified_at'] < strtotime($changedAt)) {
+                $_SESSION['perms_refresh_notified_at'] = time();
+                flash('info', '🛡 Your account permissions have been updated by an administrator.');
+            }
+        }
+    }
+}
+
 $navUser = currentUser();
 $currentPage = basename($_SERVER['PHP_SELF'], '.php');
 
@@ -156,5 +187,11 @@ function navItem($href, $icon, $label, $page, $current) {
             }
             if ($error = flash('error')) {
                 echo "<div class=\"alert alert-error\">✕ " . sanitize($error) . "</div>";
+            }
+            if ($info = flash('info')) {
+                echo "<div class=\"alert alert-info\">" . sanitize($info) . "</div>";
+            }
+            if ($warning = flash('warning')) {
+                echo "<div class=\"alert alert-warning\">⚠ " . sanitize($warning) . "</div>";
             }
             ?>

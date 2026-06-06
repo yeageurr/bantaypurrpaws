@@ -40,6 +40,9 @@ function ensureUserProfileSchema(): void {
         if (!isset($existing['profile_picture'])) {
             $alters[] = 'ADD COLUMN `profile_picture` VARCHAR(512) DEFAULT NULL';
         }
+        if (!isset($existing['permissions_changed_at'])) {
+            $alters[] = 'ADD COLUMN `permissions_changed_at` DATETIME DEFAULT NULL';
+        }
 
         if ($alters !== []) {
             $pdo->exec('ALTER TABLE `users` ' . implode(', ', $alters));
@@ -144,13 +147,25 @@ function usernameExists(string $username, ?int $excludeId = null): bool {
 function refreshUserSession(array $user): void {
     startSession();
     $user = normalizeUserRecord($user);
-    $_SESSION['user_id']    = $user['id'];
-    $_SESSION['full_name']  = $user['full_name'];
-    $_SESSION['email']      = $user['email'];
-    $_SESSION['role']       = $user['role'];
-    $_SESSION['avatar']     = profilePictureUrl($user);
-    $_SESSION['username']   = $user['username'] ?? '';
-    $_SESSION['phone']      = $user['phone_number'] ?? '';
+    $_SESSION['user_id']           = $user['id'];
+    $_SESSION['full_name']         = $user['full_name'];
+    $_SESSION['email']             = $user['email'];
+    $_SESSION['role']              = $user['role'];
+    $_SESSION['avatar']            = profilePictureUrl($user);
+    $_SESSION['username']          = $user['username'] ?? '';
+    $_SESSION['phone']             = $user['phone_number'] ?? '';
+    if (empty($_SESSION['session_started_at'])) {
+        $_SESSION['session_started_at'] = time();
+    }
+
+    // RBAC: load staff_permissions into session (null for admin/user — uses role defaults)
+    $raw = $user['staff_permissions'] ?? null;
+    if ($raw !== null && is_string($raw)) {
+        $decoded = json_decode($raw, true);
+        $_SESSION['staff_permissions'] = is_array($decoded) ? $decoded : null;
+    } else {
+        $_SESSION['staff_permissions'] = is_array($raw) ? $raw : null;
+    }
 }
 
 /**
@@ -161,7 +176,7 @@ function updateUserFields(int $userId, array $fields): bool {
 
     $allowed = [
         'full_name', 'email', 'email_hash', 'password', 'phone_number', 'username',
-        'profile_picture', 'avatar_url', 'role', 'email_verified', 'auth_provider',
+        'profile_picture', 'avatar_url', 'role', 'email_verified', 'auth_provider', 'staff_permissions', 'permissions_changed_at',
     ];
 
     $sets   = [];
@@ -398,6 +413,10 @@ function deleteUserAccount(int $targetId, array $actor): array {
 function promoteUserToStaff(int $targetId, array $actor): array {
     if (($actor['role'] ?? '') !== 'admin') {
         return ['ok' => false, 'error' => 'Only administrators can promote accounts.'];
+    }
+
+    if ($targetId === (int) $actor['id']) {
+        return ['ok' => false, 'error' => 'You cannot promote your own account.'];
     }
 
     $target = getUserById($targetId);

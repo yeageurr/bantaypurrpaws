@@ -9,6 +9,7 @@
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <?php endif; ?>
 <script src="<?= url('js/app.js') ?>"></script>
+<script src="<?= url('js/pw-toggle.js') ?>"></script>
 <?php foreach ($extraJs ?? [] as $jsFile): ?>
 <script src="<?= url($jsFile) ?>"></script>
 <?php endforeach; ?>

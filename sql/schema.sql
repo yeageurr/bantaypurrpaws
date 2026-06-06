@@ -131,5 +131,4 @@ CREATE TABLE IF NOT EXISTS otp_tokens (
 
 -- Default admin (password: password) — change in production
 INSERT IGNORE INTO users (id, full_name, email, password, role, email_verified, auth_provider) VALUES
-(1, 'System Administrator', 'admin@bantaypurrpaws.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 1, 'local'),
-(2, 'Staff Member', 'staff@bantaypurrpaws.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'staff', 1, 'local');
+(1, 'System Administrator', 'anthony.domasig@evsu.edu.ph', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin', 1, 'local');

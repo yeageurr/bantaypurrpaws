@@ -1,7 +1,7 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/sensitive-data.php';
-requireAdmin();
+requireCanManageReports();
 
 $pageTitle = 'Rescue Reports';
 
@@ -66,7 +66,7 @@ require_once __DIR__ . '/../includes/header.php';
                    placeholder="Search code, name, location…" value="<?= sanitize($search) ?>">
             <select name="status" class="form-control filter-select">
                 <option value="">All Statuses</option>
-                <option value="pending"     <?= $filterStatus === 'pending'     ? 'selected' : '' ?>>Pending</option>
+                <option value="submitted"  <?= $filterStatus === 'submitted'  ? 'selected' : '' ?>>Submitted</option>
                 <option value="in_progress" <?= $filterStatus === 'in_progress' ? 'selected' : '' ?>>In Progress</option>
                 <option value="rescued"     <?= $filterStatus === 'rescued'     ? 'selected' : '' ?>>Rescued</option>
                 <option value="failed"      <?= $filterStatus === 'failed'      ? 'selected' : '' ?>>Failed</option>

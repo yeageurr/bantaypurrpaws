@@ -37,6 +37,7 @@ const DB_ALLOWED_TABLES = [
     'adoption_applications',
     'notifications',
     'otp_tokens',
+    'staff_invites',
 ];
 
 function getDB(): PDO
@@ -45,11 +46,11 @@ function getDB(): PDO
         return $GLOBALS['_bantay_pdo'];
     }
 
-    $host = $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: 'localhost';
-    $port = $_ENV['DB_PORT'] ?? getenv('DB_PORT') ?: '3306';
-    $name = $_ENV['DB_NAME'] ?? getenv('DB_NAME') ?: '';
-    $user = $_ENV['DB_USER'] ?? getenv('DB_USER') ?: '';
-    $pass = $_ENV['DB_PASSWORD'] ?? getenv('DB_PASSWORD') ?: '';
+    $host = 'sql103.infinityfree.com';
+    $port = '3306';
+    $name = 'if0_42111065_bantaypurrpaws';
+    $user = 'if0_42111065';
+    $pass = 'wottaberu1113';
 
     $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $host, $port, $name);
 
@@ -86,6 +87,14 @@ function db_cast_filter_value(mixed $value): mixed
     }
     if (is_numeric($value) && !str_contains((string) $value, '.')) {
         return (int) $value;
+    }
+    return $value;
+}
+
+function db_cast_write_value(mixed $value): mixed
+{
+    if (is_bool($value)) {
+        return $value ? 1 : 0;
     }
     return $value;
 }
@@ -264,7 +273,7 @@ function db_insert(string $table, array $data, bool $useService = true): ?array
         $pdo  = getDB();
         $sql  = "INSERT INTO {$tableSql} ({$colList}) VALUES ({$placeholders})";
         $stmt = $pdo->prepare($sql);
-        $stmt->execute(array_values($data));
+        $stmt->execute(array_map('db_cast_write_value', array_values($data)));
 
         $id = (int) $pdo->lastInsertId();
         if ($id > 0) {
@@ -297,7 +306,7 @@ function db_update(string $table, array $data, string $filters): bool
         $params = [];
         foreach ($data as $col => $val) {
             $sets[]   = '`' . $col . '` = ?';
-            $params[] = $val;
+            $params[] = db_cast_write_value($val);
         }
 
         $sql = 'UPDATE ' . $tableSql . ' SET ' . implode(', ', $sets);

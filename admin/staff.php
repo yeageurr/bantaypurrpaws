@@ -22,6 +22,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
     exit;
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'promote_to_admin') {
+    $targetId = (int) ($_POST['user_id'] ?? 0);
+    $target   = db_select('users', "id=eq.{$targetId}&limit=1", true);
+
+    if (!$target || $target['role'] !== 'staff') {
+        flash('error', 'Only staff accounts can be promoted to administrator.');
+    } elseif ((int) $targetId === (int) $me['id']) {
+        flash('error', 'You cannot promote your own account.');
+    } else {
+        $ok = updateUserFields($targetId, ['role' => 'admin', 'staff_permissions' => null]);
+        if ($ok) {
+            require_once __DIR__ . '/../includes/notifications.php';
+            createSystemNotification(
+                'system',
+                'Your account has been promoted to Administrator. Please re-login to apply the changes.',
+                null,
+                null,
+                $targetId
+            );
+            // Force re-login for that staff member
+            updateUserFields($targetId, ['permissions_changed_at' => date('Y-m-d H:i:s')]);
+            flash('success', sanitize($target['full_name']) . ' has been promoted to Administrator.');
+        } else {
+            flash('error', 'Could not promote account. Please try again.');
+        }
+    }
+    header('Location: ' . url('admin/staff.php'));
+    exit;
+}
+
 $staffMembers = array_map('hydrateUserSensitiveFields', db_select('users', 'role=eq.staff&order=created_at.desc'));
 
 require_once __DIR__ . '/../includes/header.php';
@@ -80,7 +110,17 @@ require_once __DIR__ . '/../includes/header.php';
                     <td class="text-secondary"><?= sanitize($u['phone_number'] ?? '') !== '' ? sanitize($u['phone_number']) : '—' ?></td>
                     <td class="text-secondary text-sm"><?= date('M j, Y', strtotime($u['created_at'])) ?></td>
                     <td>
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
                         <?php if ((int) $u['id'] !== (int) $me['id']): ?>
+                        <a href="<?= url('admin/staff-edit.php?id=' . (int)$u['id']) ?>"
+                           class="btn btn-ghost btn-sm">Edit Permissions</a>
+                        <form method="POST" action="" style="display:inline;">
+                            <input type="hidden" name="action" value="promote_to_admin">
+                            <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
+                            <button type="button" class="btn btn-ghost btn-sm btn-promote-admin"
+                                    data-name="<?= sanitize($u['full_name']) ?>"
+                                    style="color:var(--accent);">↑ Promote to Admin</button>
+                        </form>
                         <form method="POST" action="" class="delete-staff-form" style="display:inline;">
                             <input type="hidden" name="action" value="delete_staff">
                             <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
@@ -90,6 +130,7 @@ require_once __DIR__ . '/../includes/header.php';
                         <?php else: ?>
                             <span class="text-sm text-muted">—</span>
                         <?php endif; ?>
+                        </div>
                     </td>
                 </tr>
                 <?php endforeach; ?>
@@ -100,6 +141,27 @@ require_once __DIR__ . '/../includes/header.php';
 </div>
 
 <script>
+document.querySelectorAll('.btn-promote-admin').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+        const form = btn.closest('form');
+        const name = btn.dataset.name || 'this staff member';
+        const message = 'Promote ' + name + ' to Administrator? This will grant full admin access and cannot be undone from this page.';
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                title: 'Promote to Administrator?',
+                text: message,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#8B3A3A',
+                cancelButtonColor: '#78716c',
+                confirmButtonText: 'Yes, Promote'
+            }).then(function (r) { if (r.isConfirmed) form.submit(); });
+        } else if (confirm(message)) {
+            form.submit();
+        }
+    });
+});
+
 document.querySelectorAll('.btn-delete-staff').forEach(function (btn) {
     btn.addEventListener('click', function () {
         const form = btn.closest('form');

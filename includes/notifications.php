@@ -199,9 +199,10 @@ function createAnnouncement(string $message, ?string $linkUrl = null): array {
         return ['notifications' => 0, 'emails' => 0, 'errors' => ['Message is empty.']];
     }
 
-    $users = db_select('users', 'role=eq.user&order=id.asc');
+    // Include both users AND staff in announcements
+    $users = db_select('users', 'role=in.(user,staff)&order=id.asc');
     if ($users === []) {
-        bpp_log('announcements', 'warning', 'No user-role accounts found for announcement.');
+        bpp_log('announcements', 'warning', 'No user/staff accounts found for announcement.');
         return ['notifications' => 0, 'emails' => 0, 'errors' => ['no_users']];
     }
 
@@ -276,7 +277,8 @@ function notificationBelongsToSessionUser(array $row): bool {
     $role   = $_SESSION['role'] ?? 'user';
     $userId = (int) ($_SESSION['user_id'] ?? 0);
 
-    if ($role === 'user') {
+    // Users and staff can mark their own notifications as read
+    if (in_array($role, ['user', 'staff'], true)) {
         return (int) ($row['user_id'] ?? 0) === $userId;
     }
 
@@ -336,5 +338,5 @@ function notificationIsUnread(array $row): bool {
 }
 
 function countRegisteredEndUsers(): int {
-    return db_count('users', 'role=eq.user');
+    return db_count('users', 'role=in.(user,staff)');
 }

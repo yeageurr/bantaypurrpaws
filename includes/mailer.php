@@ -12,9 +12,9 @@ require_once __DIR__ . '/env.php';
 load_env_file(dirname(__DIR__) . '/.env');
 require_once __DIR__ . '/logger.php';
 
-define('BREVO_API_KEY',    $_ENV['BREVO_API_KEY']    ?? getenv('BREVO_API_KEY')    ?: ''); // Set BREVO_API_KEY in your .env file
-define('MAIL_FROM',        $_ENV['MAIL_FROM']        ?? getenv('MAIL_FROM')        ?: ''); // Set MAIL_FROM in your .env file
-define('MAIL_FROM_NAME',   $_ENV['MAIL_FROM_NAME']   ?? getenv('MAIL_FROM_NAME')   ?: 'BantayPurrPaws');
+define('BREVO_API_KEY',    $_ENV['BREVO_API_KEY'] ?? getenv('BREVO_API_KEY') ?: '');
+define('MAIL_FROM',        $_ENV['MAIL_FROM'] ?? getenv('MAIL_FROM') ?: '');
+define('MAIL_FROM_NAME',   $_ENV['MAIL_FROM_NAME'] ?? getenv('MAIL_FROM_NAME') ?: 'BantayPurrPaws');
 define('APP_NAME',         'BantayPurrPaws');
 define('APP_COLOR',        '#7c6f5b'); // matches CSS --primary
 
@@ -263,3 +263,60 @@ HTML;
 
     return sendRawEmail($to, APP_NAME . ' — New Announcement', emailShell('New Announcement', $inner), $name);
 }
+function sendStaffInviteEmail(string $to, array $permissions, string $setupLink): bool {
+    $color = APP_COLOR;
+    $permLabels = [
+        'manage_reports'     => 'Manage Rescue Reports',
+        'manage_pets'        => 'Manage Pet Listings',
+        'review_adoptions'   => 'Review Adoption Applications',
+        'view_adoptions'     => 'View Adoption Queue',
+        'manage_users'       => 'Manage Regular Users',
+        'post_announcements' => 'Post Announcements',
+    ];
+    $permList = '';
+    if (!empty($permissions)) {
+        $items = '';
+        foreach ($permissions as $key) {
+            $label = $permLabels[$key] ?? $key;
+            $items .= "<li style=\"margin-bottom:4px;\">{$label}</li>";
+        }
+        $permList = "<p style=\"margin:0 0 8px;color:#6b5f56;\">You have been granted access to:</p><ul style=\"margin:0 0 24px;padding-left:20px;color:#6b5f56;\">{$items}</ul>";
+    }
+    $inner = <<<HTML
+<h2 style="margin:0 0 8px;font-size:20px;color:#2d2520;">You've been invited to join BantayPurrPaws!</h2>
+<p style="margin:0 0 16px;color:#6b5f56;">
+  An administrator has created a staff account for you on <strong style="color:{$color};">BantayPurrPaws</strong>. Click the button below to complete your account setup.
+</p>
+{$permList}
+<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 28px;">
+  <tr><td align="center">
+    <a href="{$setupLink}" style="display:inline-block;background:{$color};color:#fff;font-weight:600;font-size:15px;padding:14px 32px;border-radius:8px;text-decoration:none;">
+      Complete My Staff Account
+    </a>
+  </td></tr>
+</table>
+<p style="margin:0 0 8px;font-size:13px;color:#9c8f84;">
+  &bull; This invitation link expires in <strong>24 hours</strong>.<br>
+  &bull; If you did not expect this email, you can safely ignore it.
+</p>
+HTML;
+    return sendRawEmail($to, APP_NAME . ' — Staff Account Invitation', emailShell('Staff Invitation', $inner), '');
+}
+
+function sendPasswordChangedEmail(string $to, string $name): bool {
+    $color = APP_COLOR;
+    $inner = <<<HTML
+<h2 style="margin:0 0 8px;font-size:20px;color:#2d2520;">Hello, {$name}!</h2>
+<p style="margin:0 0 16px;color:#6b5f56;">
+  Your <strong style="color:{$color};">BantayPurrPaws</strong> account password was recently changed.
+</p>
+<p style="margin:0 0 8px;color:#6b5f56;">
+  If you made this change, no further action is needed.
+</p>
+<p style="margin:0;color:#ef4444;font-size:13px;">
+  If you did <strong>not</strong> make this change, please contact us immediately or reset your password.
+</p>
+HTML;
+    return sendRawEmail($to, APP_NAME . ' — Your Password Was Changed', emailShell('Password Changed', $inner), $name);
+}
+

@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     require_once __DIR__ . '/includes/logger.php';
                     bpp_log('reports', 'error', 'Report submit failed.', ['error' => $e->getMessage()]);
                     @unlink($dest);
-                    $error = 'Could not save your report. Please try again.';
+                    $error = 'Could not save your report. Please try again. (' . htmlspecialchars($e->getMessage()) . ')';
                 }
             }
         }
@@ -126,35 +126,34 @@ require_once __DIR__ . '/includes/header.php';
 
             <div class="form-grid">
                 <div class="form-group">
-                    <label class="form-label" for="reporter_name">Full Name <span class="req">*</span></label>
+                    <label class="form-label" for="reporter_name">Full Name</label>
                     <input
                         type="text"
                         id="reporter_name"
                         name="reporter_name"
                         class="form-control"
-                        placeholder="Your full name"
-                        value="<?= sanitize($_POST['reporter_name'] ?? $user['name']) ?>"
-                        required
+                        value="<?= sanitize($user['full_name'] ?? $user['name'] ?? '') ?>"
+                        readonly
+                        style="background:var(--surface-2,#f5f5f5);cursor:default;color:var(--text-secondary);"
                     >
                 </div>
 
                 <div class="form-group">
-                    <label class="form-label" for="contact_number">Contact Number <span class="req">*</span></label>
+                    <label class="form-label" for="contact_number">Contact Number</label>
                     <input
                         type="tel"
                         id="contact_number"
                         name="contact_number"
                         class="form-control"
-                        placeholder="09XXXXXXXXX"
-                        data-phone-numeric
-                        value="<?= sanitize($_POST['contact_number'] ?? ($user['phone'] ?? '')) ?>"
-                        required
+                        value="<?= sanitize($user['phone_number'] ?? $user['phone'] ?? '') ?>"
+                        readonly
+                        style="background:var(--surface-2,#f5f5f5);cursor:default;color:var(--text-secondary);"
                     >
                 </div>
             </div>
 
             <div class="form-group">
-                <label class="form-label" for="location">Animal Location <span class="req">*</span></label>
+                <label class="form-label" for="location">Location <span class="req">*</span></label>
                 <input
                     type="text"
                     id="location"
@@ -166,16 +165,21 @@ require_once __DIR__ . '/includes/header.php';
                 >
             </div>
 
+
             <div class="form-group">
                 <label class="form-label" for="animal_type">Animal Type</label>
-                <select name="animal_type" id="animal_type" class="form-control">
-                    <option value="">Select type (optional)</option>
-                    <option value="Dog" <?= ($_POST['animal_type'] ?? '') === 'Dog' ? 'selected' : '' ?>>Dog</option>
-                    <option value="Cat" <?= ($_POST['animal_type'] ?? '') === 'Cat' ? 'selected' : '' ?>>Cat</option>
-                    <option value="Bird" <?= ($_POST['animal_type'] ?? '') === 'Bird' ? 'selected' : '' ?>>Bird</option>
-                    <option value="Other" <?= ($_POST['animal_type'] ?? '') === 'Other' ? 'selected' : '' ?>>Other</option>
-                </select>
+                <input
+                    type="text"
+                    id="animal_type"
+                    name="animal_type"
+                    class="form-control"
+                    placeholder="e.g., Dog, Cat, Bird, Stray"
+                    value="<?= sanitize($_POST['animal_type'] ?? '') ?>"
+                >
+                <p class="form-hint">Optional — specify the type or species of the animal.</p>
             </div>
+
+
 
             <div class="form-group">
                 <label class="form-label" for="description">Additional Description</label>
@@ -212,8 +216,32 @@ require_once __DIR__ . '/includes/header.php';
 </div>
 </div>
 
+<!-- No Phone Modal -->
+<div id="noPhoneModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9999;align-items:center;justify-content:center;">
+    <div style="background:var(--surface-1,#fff);border-radius:16px;padding:32px 28px;max-width:380px;width:90%;box-shadow:0 20px 60px rgba(0,0,0,.2);text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:12px;">📱</div>
+        <h3 style="margin:0 0 10px;font-size:1.1rem;color:var(--text-primary);">Contact Number Required</h3>
+        <p style="margin:0 0 20px;font-size:.875rem;color:var(--text-secondary);line-height:1.6;">
+            You haven't added your mobile phone yet. Please add your contact number in your profile before submitting a report.
+        </p>
+        <a href="<?= url('profile.php') ?>" class="btn btn-accent" style="display:inline-block;margin-bottom:10px;text-decoration:none;">
+            Go to My Profile
+        </a>
+    </div>
+</div>
+
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    // Check if phone is empty — show modal before form can be submitted
+    const phoneVal = document.getElementById('contact_number').value.trim();
+    if (!phoneVal) {
+        const modal = document.getElementById('noPhoneModal');
+        modal.style.display = 'flex';
+        // Disable submit button
+        const submitBtn = document.querySelector('#reportForm button[type="submit"]');
+        if (submitBtn) submitBtn.disabled = true;
+    }
+
     const dropZone    = document.getElementById('dropZone');
     const photoInput  = document.getElementById('photoInput');
     const preview     = document.getElementById('uploadPreview');

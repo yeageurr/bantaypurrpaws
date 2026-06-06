@@ -1,12 +1,14 @@
 (function () {
-    const config = window.BPP_ADOPTION || {};
-    const apiPet = config.apiPet;
-    const apiAdopt = config.apiAdopt;
+    var config      = window.BPP_ADOPTION || {};
+    var apiPet      = config.apiPet;
+    var apiAdopt    = config.apiAdopt;
+    var userHasPhone = config.userHasPhone !== false;
 
-    const detailModalEl = document.getElementById('petDetailModal');
-    const adoptModalEl = document.getElementById('adoptFormModal');
+    var detailModalEl      = document.getElementById('petDetailModal');
+    var adoptModalEl       = document.getElementById('adoptFormModal');
+    var phoneRequiredModal = document.getElementById('phoneRequiredModal');
 
-    let currentPet = null;
+    var currentPet = null;
 
     function openModal(overlay) {
         if (!overlay) return;
@@ -32,9 +34,7 @@
 
     document.querySelectorAll('.modal-overlay').forEach(function (overlay) {
         overlay.addEventListener('click', function (e) {
-            if (e.target === overlay) {
-                closeModal(overlay);
-            }
+            if (e.target === overlay) closeModal(overlay);
         });
     });
 
@@ -45,56 +45,63 @@
     });
 
     function esc(str) {
-        const d = document.createElement('div');
-        d.textContent = str ?? '';
+        var d = document.createElement('div');
+        d.textContent = str != null ? str : '';
         return d.innerHTML;
     }
 
     function showAlert(icon, title, text) {
         if (typeof Swal !== 'undefined') {
-            Swal.fire({ icon, title, text, confirmButtonColor: '#8B3A3A' });
+            Swal.fire({ icon: icon, title: title, text: text, confirmButtonColor: '#8B3A3A' });
         } else {
             alert(title + (text ? '\n' + text : ''));
         }
     }
 
+    function checkPhoneThenAdopt(callback) {
+        if (!userHasPhone) {
+            openModal(phoneRequiredModal);
+            return;
+        }
+        callback();
+    }
+
     function renderDetail(pet) {
         currentPet = pet;
-        const mainImg = document.getElementById('petDetailMainImg');
-        const thumbs = document.getElementById('petDetailThumbs');
-        const body = document.getElementById('petDetailBody');
-        const adoptBtn = document.getElementById('petDetailAdoptBtn');
+        var mainImg  = document.getElementById('petDetailMainImg');
+        var thumbs   = document.getElementById('petDetailThumbs');
+        var body     = document.getElementById('petDetailBody');
+        var adoptBtn = document.getElementById('petDetailAdoptBtn');
 
         if (!mainImg || !body) return;
 
-        const images = pet.images && pet.images.length ? pet.images : [config.placeholder];
+        var images = pet.images && pet.images.length ? pet.images : [config.placeholder];
         mainImg.src = images[0];
         mainImg.alt = pet.name;
 
-        thumbs.innerHTML = images.map((src, i) =>
-            `<img src="${esc(src)}" class="pet-detail-thumb${i === 0 ? ' active' : ''}" data-src="${esc(src)}" alt="">`
-        ).join('');
+        thumbs.innerHTML = images.map(function(src, i) {
+            return '<img src="' + esc(src) + '" class="pet-detail-thumb' + (i === 0 ? ' active' : '') + '" data-src="' + esc(src) + '" alt="">';
+        }).join('');
 
-        thumbs.querySelectorAll('.pet-detail-thumb').forEach((thumb) => {
+        thumbs.querySelectorAll('.pet-detail-thumb').forEach(function(thumb) {
             thumb.addEventListener('click', function () {
                 mainImg.src = this.dataset.src;
-                thumbs.querySelectorAll('.pet-detail-thumb').forEach((t) => t.classList.remove('active'));
+                thumbs.querySelectorAll('.pet-detail-thumb').forEach(function(t) { t.classList.remove('active'); });
                 this.classList.add('active');
             });
         });
 
-        body.innerHTML = `
-            <dl class="pet-detail-list">
-                <div><dt>Name</dt><dd>${esc(pet.name)}</dd></div>
-                <div><dt>Breed</dt><dd>${esc(pet.breed)}</dd></div>
-                <div><dt>Age</dt><dd>${esc(pet.age)}</dd></div>
-                <div><dt>Gender</dt><dd>${esc(pet.gender)}</dd></div>
-                <div><dt>Vaccination</dt><dd>${esc(pet.vaccination_status) || '—'}</dd></div>
-                <div><dt>Rescue Date</dt><dd>${esc(pet.rescue_date)}</dd></div>
-                <div class="pet-detail-full"><dt>Health Condition</dt><dd>${esc(pet.health_condition) || '—'}</dd></div>
-                <div class="pet-detail-full"><dt>Personality / Description</dt><dd>${esc(pet.description) || '—'}</dd></div>
-                <div class="pet-detail-full"><dt>Adoption Requirements</dt><dd>${esc(pet.adoption_requirements) || '—'}</dd></div>
-            </dl>`;
+        body.innerHTML =
+            '<dl class="pet-detail-list">' +
+            '<div><dt>Name</dt><dd>' + esc(pet.name) + '</dd></div>' +
+            '<div><dt>Breed</dt><dd>' + esc(pet.breed) + '</dd></div>' +
+            '<div><dt>Age</dt><dd>' + esc(pet.age) + '</dd></div>' +
+            '<div><dt>Gender</dt><dd>' + esc(pet.gender) + '</dd></div>' +
+            '<div><dt>Vaccination Type</dt><dd>' + (esc(pet.vaccination_status) || '—') + '</dd></div>' +
+            '<div><dt>Rescue Date</dt><dd>' + esc(pet.rescue_date) + '</dd></div>' +
+            '<div class="pet-detail-full"><dt>Health Condition</dt><dd>' + (esc(pet.health_condition) || '—') + '</dd></div>' +
+            '<div class="pet-detail-full"><dt>Personality / Description</dt><dd>' + (esc(pet.description) || '—') + '</dd></div>' +
+            '</dl>';
 
         if (adoptBtn) {
             adoptBtn.style.display = pet.can_adopt ? '' : 'none';
@@ -104,12 +111,12 @@
         document.getElementById('petDetailModalLabel').textContent = pet.name;
     }
 
-    document.querySelectorAll('[data-pet-info]').forEach((btn) => {
+    document.querySelectorAll('[data-pet-info]').forEach(function(btn) {
         btn.addEventListener('click', async function () {
-            const id = this.dataset.petId;
+            var id = this.dataset.petId;
             try {
-                const res = await fetch(`${apiPet}?id=${encodeURIComponent(id)}`);
-                const data = await res.json();
+                var res  = await fetch(apiPet + '?id=' + encodeURIComponent(id));
+                var data = await res.json();
                 if (!res.ok || data.error) {
                     showAlert('error', 'Error', data.error || 'Could not load pet details.');
                     return;
@@ -122,74 +129,72 @@
         });
     });
 
-    document.getElementById('petDetailAdoptBtn')?.addEventListener('click', function () {
+    document.getElementById('petDetailAdoptBtn') && document.getElementById('petDetailAdoptBtn').addEventListener('click', function () {
         if (!currentPet || !currentPet.can_adopt) return;
-        document.getElementById('adoptPetId').value = currentPet.id;
-        document.getElementById('adoptPetNameLabel').textContent = currentPet.name;
-        closeModal(detailModalEl);
-        openModal(adoptModalEl);
+        checkPhoneThenAdopt(function() {
+            document.getElementById('adoptPetId').value = currentPet.id;
+            document.getElementById('adoptPetNameLabel').textContent = currentPet.name;
+            closeModal(detailModalEl);
+            openModal(adoptModalEl);
+        });
     });
 
-    document.querySelectorAll('[data-pet-adopt]').forEach((btn) => {
+    document.querySelectorAll('[data-pet-adopt]').forEach(function(btn) {
         btn.addEventListener('click', async function () {
-            const id = this.dataset.petId;
+            var id = this.dataset.petId;
             if (this.dataset.available !== '1') {
                 showAlert('info', 'Unavailable', 'This pet has already been adopted.');
                 return;
             }
-            try {
-                const res = await fetch(`${apiPet}?id=${encodeURIComponent(id)}`);
-                const data = await res.json();
-                if (!res.ok || !data.pet) {
-                    showAlert('error', 'Error', data.error || 'Could not load pet.');
-                    return;
+            checkPhoneThenAdopt(async function() {
+                try {
+                    var res  = await fetch(apiPet + '?id=' + encodeURIComponent(id));
+                    var data = await res.json();
+                    if (!res.ok || !data.pet) {
+                        showAlert('error', 'Error', data.error || 'Could not load pet.');
+                        return;
+                    }
+                    currentPet = data.pet;
+                    if (!data.pet.can_adopt) {
+                        showAlert('info', 'Unavailable', 'This pet is not accepting new applications.');
+                        return;
+                    }
+                    document.getElementById('adoptPetId').value = data.pet.id;
+                    document.getElementById('adoptPetNameLabel').textContent = data.pet.name;
+                    openModal(adoptModalEl);
+                } catch (e) {
+                    showAlert('error', 'Error', 'Network error.');
                 }
-                currentPet = data.pet;
-                if (!data.pet.can_adopt) {
-                    showAlert('info', 'Unavailable', 'This pet is not accepting new applications.');
-                    return;
-                }
-                document.getElementById('adoptPetId').value = data.pet.id;
-                document.getElementById('adoptPetNameLabel').textContent = data.pet.name;
-                openModal(adoptModalEl);
-            } catch (e) {
-                showAlert('error', 'Error', 'Network error.');
-            }
+            });
         });
     });
 
-    const adoptForm = document.getElementById('adoptionApplicationForm');
-    adoptForm?.addEventListener('submit', async function (e) {
+    var adoptForm = document.getElementById('adoptionApplicationForm');
+    adoptForm && adoptForm.addEventListener('submit', async function (e) {
         e.preventDefault();
-        const form = e.target;
-        const fd = new FormData(form);
+        var form = e.target;
+        var fd   = new FormData(form);
 
         if (!fd.get('agreement')) {
             showAlert('warning', 'Agreement required', 'Please accept the adoption terms.');
             return;
         }
-
-        const contactField = form.querySelector('[name="contact_number"]');
-        if (contactField && window.BPPPhone) {
-            const phoneErr = window.BPPPhone.validatePhoneInput(contactField);
-            if (phoneErr) {
-                showAlert('warning', 'Invalid phone number', phoneErr);
-                return;
-            }
-            contactField.value = window.BPPPhone.digitsOnly(contactField.value);
+        if (!fd.get('existing_pets')) {
+            showAlert('warning', 'Missing field', 'Please indicate if you have existing pets.');
+            return;
         }
 
-        const submitBtn = form.querySelector('[type="submit"]');
+        var submitBtn = form.querySelector('[type="submit"]');
         submitBtn.disabled = true;
 
         try {
-            const res = await fetch(apiAdopt, { method: 'POST', body: fd });
-            const data = await res.json();
+            var res  = await fetch(apiAdopt, { method: 'POST', body: fd });
+            var data = await res.json();
             if (data.success) {
                 closeModal(adoptModalEl);
                 form.reset();
                 showAlert('success', 'Application Submitted', data.message);
-                setTimeout(() => location.reload(), 1800);
+                setTimeout(function() { location.reload(); }, 1800);
             } else {
                 showAlert('error', 'Submission Failed', data.message || 'Please check your entries.');
             }

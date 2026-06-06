@@ -7,6 +7,7 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/adoption.php';
 require_once __DIR__ . '/../includes/validation.php';
 require_once __DIR__ . '/../includes/sensitive-data.php';
+require_once __DIR__ . '/../includes/users.php';
 
 header('Content-Type: application/json');
 requireLogin();
@@ -18,82 +19,95 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 $user  = currentUser();
+$userId = (int) $user['id'];
 $petId = (int) ($_POST['pet_id'] ?? 0);
 
-// ← CHANGED: removed $db arguments
 if (!$petId || !petCanReceiveApplications($petId)) {
     echo json_encode(['success' => false, 'message' => 'This pet is not available for adoption.']);
     exit;
 }
 
-if (userHasPendingApplication((int) $user['id'], $petId)) {
+if (userHasPendingApplication($userId, $petId)) {
     echo json_encode(['success' => false, 'message' => 'You already have a pending application for this pet.']);
     exit;
 }
 
-// Sanitize inputs
-$fullName   = sanitize(trim($_POST['full_name']           ?? ''));
-$contactRaw = trim($_POST['contact_number']               ?? '');
-$email      = sanitize(trim($_POST['email']               ?? ''));
-$address    = sanitize(trim($_POST['address']             ?? ''));
-$occupation = sanitize(trim($_POST['occupation']          ?? ''));
-$reason     = sanitize(trim($_POST['reason_for_adoption'] ?? ''));
-$homeType   = sanitize(trim($_POST['home_type']           ?? ''));
-$existing   = strtolower(sanitize(trim($_POST['existing_pets'] ?? '')));
-$agreement  = isset($_POST['agreement']);
+// Get full user for auto-filled fields
+$fullUser = getUserById($userId);
+$fullName    = $fullUser['full_name'] ?? '';
+$contactRaw  = $fullUser['phone_number'] ?? '';
 
-// Validate
-$errors = [];
-if ($fullName === '')   $errors[] = 'Full name is required.';
+// Validate phone — must be set
+if ($contactRaw === '' || $contactRaw === null) {
+    echo json_encode(['success' => false, 'message' => 'Please add a phone number to your profile before applying.']);
+    exit;
+}
 
 $phoneCheck = validatePhoneNumber($contactRaw);
 if (!$phoneCheck['ok']) {
-    $errors[] = $phoneCheck['error'];
-} else {
-    $contact = $phoneCheck['value'];
+    echo json_encode(['success' => false, 'message' => $phoneCheck['error']]);
+    exit;
 }
+$contact = $phoneCheck['value'];
 
-if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) $errors[] = 'A valid email is required.';
-if ($address === '')    $errors[] = 'Complete address is required.';
-if ($occupation === '') $errors[] = 'Occupation is required.';
-if ($reason === '')     $errors[] = 'Reason for adoption is required.';
-if ($homeType === '')   $errors[] = 'Type of home is required.';
-if (!in_array($existing, ['yes', 'no'], true)) $errors[] = 'Please specify if you have existing pets.';
-if (!$agreement)        $errors[] = 'You must agree to the adoption terms.';
+// Collect + validate remaining inputs
+$occupation    = sanitize(trim($_POST['occupation']     ?? ''));
+$existingPets  = strtolower(sanitize(trim($_POST['existing_pets'] ?? '')));
+$scheduleDate  = trim($_POST['schedule_date']           ?? '');
+$scheduleTime  = trim($_POST['schedule_time']           ?? '');
+$agreement     = isset($_POST['agreement']);
+
+$errors = [];
+if ($fullName === '')                                    $errors[] = 'Full name is missing from your profile.';
+if ($occupation === '')                                  $errors[] = 'Occupation is required.';
+if (!in_array($existingPets, ['yes', 'no'], true))      $errors[] = 'Please specify if you have existing pets.';
+if ($scheduleDate === '')                                $errors[] = 'Please select a meeting date.';
+if ($scheduleTime === '')                                $errors[] = 'Please select a meeting time.';
+if (!$agreement)                                        $errors[] = 'You must agree to the adoption terms.';
+
+// Validate schedule date: today up to 1 month forward
+if ($scheduleDate !== '') {
+    $ts  = strtotime($scheduleDate);
+    $min = strtotime('today');
+    $max = strtotime('+1 month');
+    if ($ts < $min || $ts > $max) {
+        $errors[] = 'Meeting date must be from today and up to 1 month ahead.';
+    }
+}
 
 if ($errors) {
     echo json_encode(['success' => false, 'message' => implode(' ', $errors)]);
     exit;
 }
 
-// ← CHANGED: removed $db argument
 $pet = getPetById($petId);
 
 try {
-    // ← CHANGED: replaced PDO beginTransaction + prepare + execute + lastInsertId
-    //            with a single db_insert() call
     $application = db_insert('adoption_applications', [
-        'pet_id'              => $petId,
-        'user_id'             => $user['id'],
-        'full_name'           => $fullName,
-        'contact_number'      => protectSubmissionPhone($contact),
-        'email'               => protectSubmissionEmail($email),
-        'address'             => $address,
-        'occupation'          => $occupation,
-        'reason_for_adoption' => $reason,
-        'home_type'           => $homeType,
-        'existing_pets'       => $existing,
-        'agreement'           => true,
-        'status'              => 'pending',
+        'pet_id'         => $petId,
+        'user_id'        => $userId,
+        'full_name'      => $fullName,
+        'contact_number' => protectSubmissionPhone($contact),
+        'email'          => protectSubmissionEmail($fullUser['email'] ?? ''),
+        'address'        => null,
+        'occupation'     => $occupation,
+        'reason_for_adoption' => null,
+        'home_type'      => null,
+        'existing_pets'  => $existingPets,
+        'schedule_date'  => $scheduleDate,
+        'schedule_time'  => $scheduleTime,
+        'agreement'      => true,
+        'status'         => 'pending',
     ]);
 
     if (!$application) {
         throw new RuntimeException('Insert returned null.');
     }
 
-    $applicationId = (int) $application['id'];
+    // NOTE: Pet status remains 'available' until an admin explicitly approves an adoption application.
+    // This allows the admin to review and approve from the admin panel without hitting 'not available' errors.
 
-    // ← CHANGED: removed $db argument
+    $applicationId = (int) $application['id'];
     createAdoptionNotification($applicationId, $fullName, $pet['name']);
 
     echo json_encode([

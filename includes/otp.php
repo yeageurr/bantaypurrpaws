@@ -9,7 +9,7 @@ require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/mailer.php';
 
 define('OTP_TTL_SECONDS', 900);   // 15 minutes (Brevo free tier can be slow)
-define('OTP_MAX_RESEND',  5);     // max sends per hour
+define('OTP_MAX_RESEND',  100);     // max sends per hour
 
 // ── Generate ──────────────────────────────────────────────
 
@@ -72,12 +72,11 @@ function createOtp(string $email, string $purpose = 'registration'): string|fals
  * NOTE: $db parameter removed — pass email, code, purpose only.
  */
 function verifyOtp(string $email, string $code, string $purpose = 'registration'): string {
-    // Find matching unused token
+    // Find the most recent unused token for this email+purpose
     $row = db_select(
         'otp_tokens',
-        'email=eq.'    . urlencode($email)
-        . '&otp_code=eq.' . urlencode($code)
-        . '&purpose=eq.'  . $purpose
+        'email=eq.' . urlencode($email)
+        . '&purpose=eq.' . $purpose
         . '&used=eq.false'
         . '&order=created_at.desc'
         . '&limit=1',
@@ -85,6 +84,16 @@ function verifyOtp(string $email, string $code, string $purpose = 'registration'
     );
 
     if (!$row) {
+        return 'invalid';
+    }
+
+    // Trim both values to handle CHAR(6) padding and whitespace
+    $storedCode = trim($row['otp_code']);
+    $enteredCode = trim($code);
+
+    // Debug logging before comparison
+    // Compare codes in PHP to avoid DB-side numeric casting (preserve leading zeros)
+    if (!hash_equals($storedCode, $enteredCode)) {
         return 'invalid';
     }
 

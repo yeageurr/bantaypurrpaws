@@ -136,42 +136,108 @@ function canUpdateRescueReport(array $report): bool {
     if (!isStaff()) {
         return false;
     }
-    return ($report['status'] ?? '') !== 'pending';
+    $s = $report['status'] ?? ''; return $s !== 'pending' && $s !== 'submitted';
 }
 
-/** Manage staff and user accounts. */
+// ── RBAC helpers ──────────────────────────────────────────────────────────────
+// Staff accounts may have a JSON `staff_permissions` array in the session.
+// Admins always pass every permission check.
+// Staff without any stored permissions fall back to the safe-minimal defaults.
+//
+// Permission keys:
+//   manage_reports      – view + update rescue reports
+//   manage_pets         – create / edit / delete pet listings
+//   review_adoptions    – approve / reject adoption applications
+//   view_adoptions      – view adoption queue (read-only)
+//   manage_users        – manage regular user accounts
+//   manage_staff        – create / delete staff accounts
+//   post_announcements  – publish site announcements
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Load staff_permissions from the session.
+ * Returns null if the user is not a staff member or no overrides are stored.
+ */
+function staffPermissions(): ?array {
+    startSession();
+    if (($_SESSION['role'] ?? '') !== 'staff') {
+        return null;
+    }
+    $raw = $_SESSION['staff_permissions'] ?? null;
+    if (is_array($raw)) {
+        return $raw;
+    }
+    if (is_string($raw) && $raw !== '') {
+        $decoded = json_decode($raw, true);
+        return is_array($decoded) ? $decoded : null;
+    }
+    return null; // No stored permissions → use role defaults
+}
+
+/**
+ * Check whether the current user holds a named permission.
+ *   - Admins always return true.
+ *   - Staff with an explicit permissions list check the list.
+ *   - Staff without a permissions list fall back to $defaultForStaff.
+ *   - Regular users always return false.
+ */
+function hasPermission(string $key, bool $defaultForStaff = false): bool {
+    if (isAdministrator()) {
+        return true;
+    }
+    if (!isStaff()) {
+        return false;
+    }
+    $perms = staffPermissions();
+    if ($perms === null) {
+        return $defaultForStaff;
+    }
+    return in_array($key, $perms, true);
+}
+
+/** Manage staff and user accounts (admin-only by default). */
 function canManageAccounts(): bool {
-    return isAdministrator();
+    return hasPermission('manage_staff', false);
 }
 
 /** Post system-wide announcements. */
 function canPostAnnouncements(): bool {
-    return isAdministrator();
+    return hasPermission('post_announcements', false);
 }
 
 /** Create, edit, and delete pet listings. */
 function canManagePetListings(): bool {
-    return isAdmin();
+    return hasPermission('manage_pets', true); // staff default: allowed
 }
 
 /** Approve or reject adoption applications. */
 function canReviewAdoptionApplications(): bool {
-    return isAdministrator();
+    return hasPermission('review_adoptions', false);
 }
 
 /** View adoption queue and application details. */
 function canViewAdoptionApplications(): bool {
-    return isAdmin();
+    return hasPermission('view_adoptions', true); // staff default: allowed
 }
 
 // ── Route guards ──────────────────────────────────────────
+// These enforce RBAC: admins always pass; staff are checked against their
+// stored permissions; regular users are always redirected out.
 
 function requireCanViewAdoptionApplications(): void {
-    requireAdmin();
+    requireAdmin(); // ensures logged-in admin or staff
+    if (!canViewAdoptionApplications()) {
+        header('Location: ' . url('admin/dashboard.php'));
+        exit;
+    }
 }
 
 function requireCanReviewAdoptionApplications(): void {
-    requireAdminOnly();
+    requireAdmin(); // allows admin OR staff with the permission
+    if (!canReviewAdoptionApplications()) {
+        header('Location: ' . url('admin/dashboard.php'));
+        exit;
+    }
 }
 
 function requireCanManagePetListings(): void {
@@ -183,11 +249,32 @@ function requireCanManagePetListings(): void {
 }
 
 function requireCanManageAccounts(): void {
-    requireAdminOnly();
+    requireAdmin();
+    if (!canManageAccounts()) {
+        header('Location: ' . url('admin/dashboard.php'));
+        exit;
+    }
 }
 
 function requireCanPostAnnouncements(): void {
-    requireAdminOnly();
+    requireAdmin();
+    if (!canPostAnnouncements()) {
+        header('Location: ' . url('admin/dashboard.php'));
+        exit;
+    }
+}
+
+/** Manage rescue reports. Staff with manage_reports permission can access. */
+function canManageReports(): bool {
+    return hasPermission('manage_reports', true); // staff default: allowed
+}
+
+function requireCanManageReports(): void {
+    requireAdmin();
+    if (!canManageReports()) {
+        header('Location: ' . url('admin/dashboard.php'));
+        exit;
+    }
 }
 
 /** @deprecated Use requireCanReviewAdoptionApplications() */
@@ -263,7 +350,8 @@ function createUser(string $fullName, string $email, string $hashedPassword): ?i
 
 function formatStatus($status) {
     return match($status) {
-        'pending'     => ['label' => 'Pending',     'class' => 'status-pending'],
+        'submitted'   => ['label' => 'Submitted',   'class' => 'status-submitted'],
+        'pending'     => ['label' => 'Submitted',   'class' => 'status-submitted'], // legacy alias
         'in_progress' => ['label' => 'In Progress', 'class' => 'status-progress'],
         'rescued'     => ['label' => 'Rescued',     'class' => 'status-rescued'],
         'failed'      => ['label' => 'Failed',      'class' => 'status-failed'],

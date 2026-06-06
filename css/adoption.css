@@ -84,6 +84,11 @@
     color: var(--stone-600);
 }
 
+.pet-status-pending {
+    background: #fef3c7;
+    color: #92400e;
+}
+
 .pet-card-actions {
     margin-top: auto;
     display: flex;

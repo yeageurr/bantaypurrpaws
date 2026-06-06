@@ -8,7 +8,7 @@ USE bantaypurrpaws;
 
 DELIMITER //
 
-CREATE PROCEDURE IF NOT EXISTS approve_adoption(
+CREATE PROCEDURE   approve_adoption(
     IN p_application_id INT,
     IN p_pet_id INT
 )

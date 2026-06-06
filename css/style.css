@@ -824,6 +824,12 @@ textarea.form-control {
     border-color: #93c5fd;
 }
 
+.alert-warning {
+    background: #fef9c3;
+    color: #854d0e;
+    border-color: #fde047;
+}
+
 /* --- Timeline / Logs --- */
 .timeline {
     display: flex;
@@ -1122,13 +1128,11 @@ textarea.form-control {
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.5);
-    backdrop-filter: blur(4px);
+    background: rgba(0,0,0,0.65);
     z-index: 200;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px;
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease;
@@ -1140,11 +1144,11 @@ textarea.form-control {
 }
 
 .modal {
-    background: var(--surface);
     border-radius: var(--radius-xl);
     padding: 32px;
     width: 100%;
     max-width: 480px;
+    background: var(--surface);
     box-shadow: var(--shadow-xl);
     transform: scale(0.96);
     transition: transform 0.2s ease;
@@ -1366,3 +1370,5 @@ textarea.form-control {
 .pw-guidance ul li {
     margin-bottom: 2px;
 }
+
+.status-submitted { background: rgba(99,102,241,.12); color:#4338ca; }

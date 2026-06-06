@@ -92,18 +92,30 @@ require_once __DIR__ . '/../includes/header.php';
                 </div>
                 <div class="form-group">
                     <label class="form-label">Status</label>
+                    <?php if ($editPet): ?>
                     <select name="status" class="form-control">
                         <option value="available" <?= ($editPet['status'] ?? 'available') === 'available' ? 'selected' : '' ?>>Available</option>
                         <option value="adopted"   <?= ($editPet['status'] ?? '') === 'adopted' ? 'selected' : '' ?>>Adopted</option>
                     </select>
+                    <p class="text-sm text-secondary" style="margin-top:4px;">Status changes automatically to Adopted when an application is approved.</p>
+                    <?php else: ?>
+                    <input type="text" class="form-control" value="Available" readonly disabled>
+                    <input type="hidden" name="status" value="available">
+                    <p class="text-sm text-secondary" style="margin-top:4px;">New pets default to Available. Status updates automatically upon adoption approval.</p>
+                    <?php endif; ?>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Rescue Date</label>
                     <input type="date" name="rescue_date" class="form-control" value="<?= sanitize($editPet['rescue_date'] ?? '') ?>">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Vaccination Status</label>
-                    <input type="text" name="vaccination_status" class="form-control" value="<?= sanitize($editPet['vaccination_status'] ?? '') ?>">
+                    <label class="form-label" style="display:flex;align-items:center;gap:6px;">
+                        Vaccination Type
+                        <span class="vaccine-tip" title="Vaccine type e.g. Anti-Rabies, DA2PP, Leptospirosis" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;background:var(--surface-2);border:1px solid var(--border);border-radius:50%;font-size:11px;color:var(--text-secondary);cursor:help;flex-shrink:0;">?</span>
+                    </label>
+                    <input type="text" name="vaccination_status" class="form-control"
+                           placeholder="e.g. Anti-Rabies, DA2PP"
+                           value="<?= sanitize($editPet['vaccination_status'] ?? '') ?>">
                 </div>
                 <div class="form-group" style="grid-column:1/-1">
                     <label class="form-label">Health Condition</label>
@@ -112,10 +124,6 @@ require_once __DIR__ . '/../includes/header.php';
                 <div class="form-group" style="grid-column:1/-1">
                     <label class="form-label">Description / Personality</label>
                     <textarea name="description" class="form-control" rows="3"><?= sanitize($editPet['description'] ?? '') ?></textarea>
-                </div>
-                <div class="form-group" style="grid-column:1/-1">
-                    <label class="form-label">Adoption Requirements</label>
-                    <textarea name="adoption_requirements" class="form-control" rows="3"><?= sanitize($editPet['adoption_requirements'] ?? '') ?></textarea>
                 </div>
                 <div class="form-group">
                     <label class="form-label">Primary Photo <?= $editPet ? '' : '<span class="req">*</span>' ?></label>
@@ -214,4 +222,21 @@ document.querySelectorAll('.pet-delete-form').forEach(function (form) {
 });
 </script>
 
+<script>
+// Vaccine type tooltip
+document.querySelectorAll('.vaccine-tip').forEach(function(el) {
+    var tip = document.createElement('div');
+    tip.style.cssText = 'position:fixed;background:#333;color:#fff;font-size:12px;padding:6px 10px;border-radius:6px;pointer-events:none;z-index:9999;opacity:0;transition:opacity .15s;max-width:220px;line-height:1.4;';
+    tip.textContent = el.getAttribute('title');
+    el.removeAttribute('title');
+    document.body.appendChild(tip);
+    el.addEventListener('mouseenter', function(e) {
+        var r = el.getBoundingClientRect();
+        tip.style.left = (r.right + 8) + 'px';
+        tip.style.top  = (r.top - 4) + 'px';
+        tip.style.opacity = '1';
+    });
+    el.addEventListener('mouseleave', function() { tip.style.opacity = '0'; });
+});
+</script>
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

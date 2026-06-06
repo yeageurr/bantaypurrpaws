@@ -101,18 +101,17 @@ require_once __DIR__ . '/../includes/header.php';
                     <?php if ($isSiteAdmin): ?>
                     <td>
                         <div class="flex items-center gap-2">
-                            <form method="POST" action="" class="promote-user-form" style="display:inline;">
-                                <input type="hidden" name="action" value="promote_user">
-                                <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
-                                <button type="button" class="btn btn-accent btn-sm btn-promote-user"
-                                        data-name="<?= sanitize($u['full_name']) ?>">Promote</button>
-                            </form>
+                            <?php if ((int)$u['id'] !== (int)$me['id']): ?>
+
                             <form method="POST" action="" class="delete-user-form" style="display:inline;">
                                 <input type="hidden" name="action" value="delete_user">
                                 <input type="hidden" name="user_id" value="<?= (int) $u['id'] ?>">
                                 <button type="button" class="btn btn-ghost btn-sm btn-delete-user"
                                         data-name="<?= sanitize($u['full_name']) ?>">Delete</button>
                             </form>
+                            <?php else: ?>
+                            <span class="text-secondary text-sm" style="font-style:italic;">You</span>
+                            <?php endif; ?>
                         </div>
                     </td>
                     <?php endif; ?>
