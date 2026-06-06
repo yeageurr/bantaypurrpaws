@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 8.0.46, for Linux (x86_64)
 --
--- Host: localhost    Database: bantaypurrpaws
+-- Host: sql103.infinityfree.com    Database: bantaypurrpaws
 -- ------------------------------------------------------
 -- Server version	8.0.46
 

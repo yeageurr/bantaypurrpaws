@@ -66,7 +66,24 @@ function request_host(): string {
     if (!empty($_SERVER['HTTP_X_FORWARDED_HOST'])) {
         return trim(explode(',', $_SERVER['HTTP_X_FORWARDED_HOST'])[0]);
     }
-    return $_SERVER['HTTP_HOST'] ?? 'localhost';
+    if (!empty($_SERVER['HTTP_HOST'])) {
+        return $_SERVER['HTTP_HOST'];
+    }
+
+    // Fall back to an explicit APP_URL or GOOGLE_REDIRECT_URI set in the environment
+    $envHost = '';
+    $appUrl = getenv('APP_URL') ?: ($_ENV['APP_URL'] ?? false);
+    if ($appUrl) {
+        $envHost = parse_url($appUrl, PHP_URL_HOST) ?: '';
+    }
+    if ($envHost === '') {
+        $gRedirect = getenv('GOOGLE_REDIRECT_URI') ?: ($_ENV['GOOGLE_REDIRECT_URI'] ?? false);
+        if ($gRedirect) {
+            $envHost = parse_url($gRedirect, PHP_URL_HOST) ?: '';
+        }
+    }
+
+    return $envHost !== '' ? $envHost : 'sql103.infinityfree.com';
 }
 
 /**
@@ -100,7 +117,7 @@ function app_origin(): string {
         return $origin;
     }
 
-    // Prefer the host the user actually opened (localhost vs InfinityFree, etc.)
+    // Prefer the host the user actually opened (sql103.infinityfree.com vs InfinityFree, etc.)
     if (!empty($_SERVER['HTTP_HOST'])) {
         $origin = request_scheme() . '://' . request_host();
         return $origin;
@@ -111,8 +128,26 @@ function app_origin(): string {
         $origin = rtrim($fromFile, '/');
         return $origin;
     }
+    // Final fallback: try to construct origin from env variables, then default host.
+    $envUrl = getenv('APP_URL') ?: ($_ENV['APP_URL'] ?? false);
+    if ($envUrl) {
+        $origin = rtrim($envUrl, '/');
+        return $origin;
+    }
 
-    $origin = 'http://localhost';
+    $gRedirect = getenv('GOOGLE_REDIRECT_URI') ?: ($_ENV['GOOGLE_REDIRECT_URI'] ?? false);
+    if ($gRedirect) {
+        $parts = parse_url($gRedirect);
+        if (!empty($parts['scheme']) && !empty($parts['host'])) {
+            $origin = $parts['scheme'] . '://' . $parts['host'];
+            if (!empty($parts['port'])) {
+                $origin .= ':' . $parts['port'];
+            }
+            return $origin;
+        }
+    }
+
+    $origin = 'http://sql103.infinityfree.com';
     return $origin;
 }
 
